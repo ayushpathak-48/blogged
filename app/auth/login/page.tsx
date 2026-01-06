@@ -1,6 +1,6 @@
 "use client";
 
-import { SignUpSchema } from "@/app/schemas/auth";
+import { LoginSchema } from "@/app/schemas/auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,21 +16,45 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { authClient } from "@/lib/auth-client";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2Icon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
 import z from "zod";
 
 const LoginPage = () => {
+  // Hooks
+  const router = useRouter();
   const form = useForm({
-    resolver: zodResolver(SignUpSchema),
+    resolver: zodResolver(LoginSchema),
     defaultValues: {
-      name: "",
       email: "",
       password: "",
     },
   });
-  function onSubmit(data: z.infer<typeof SignUpSchema>) {
-    console.log(data);
+
+  // States
+  const [isPending, startTransition] = useTransition();
+
+  // UDFs
+  function onSubmit(data: z.infer<typeof LoginSchema>) {
+    startTransition(async () => {
+      await authClient.signIn.email({
+        ...data,
+        fetchOptions: {
+          onSuccess: () => {
+            toast.success("Logged in successfully!");
+            router.push("/");
+          },
+          onError: (error) => {
+            toast.error(`Login failed: ${error.error.message}`);
+          },
+        },
+      });
+    });
   }
   return (
     <Card>
@@ -47,7 +71,11 @@ const LoginPage = () => {
               render={({ field, fieldState }) => (
                 <Field>
                   <FieldLabel>Email</FieldLabel>
-                  <Input placeholder="john.doe@example.com" {...field} />
+                  <Input
+                    aria-invalid={fieldState.invalid}
+                    placeholder="john.doe@example.com"
+                    {...field}
+                  />
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
                   )}
@@ -60,14 +88,28 @@ const LoginPage = () => {
               render={({ field, fieldState }) => (
                 <Field>
                   <FieldLabel>Password</FieldLabel>
-                  <Input placeholder="********" type="password" {...field} />
+                  <Input
+                    aria-invalid={fieldState.invalid}
+                    placeholder="********"
+                    type="password"
+                    {...field}
+                  />
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
                   )}
                 </Field>
               )}
             />
-            <Button>Sign up</Button>
+            <Button disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Loader2Icon className="size-4 animate-spin" />
+                  <span>Loading...</span>
+                </>
+              ) : (
+                <span>Login</span>
+              )}
+            </Button>
           </FieldGroup>
         </form>
       </CardContent>

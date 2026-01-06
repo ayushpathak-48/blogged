@@ -16,11 +16,18 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { authClient } from "@/lib/auth-client";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2Icon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
 import z from "zod";
 
 const SignUpPage = () => {
+  const router = useRouter();
+
   const form = useForm({
     resolver: zodResolver(SignUpSchema),
     defaultValues: {
@@ -29,8 +36,26 @@ const SignUpPage = () => {
       password: "",
     },
   });
+
+  // States
+  const [isPending, startTransition] = useTransition();
+
+  // UDFs
   function onSubmit(data: z.infer<typeof SignUpSchema>) {
-    console.log(data);
+    startTransition(async () => {
+      await authClient.signUp.email({
+        ...data,
+        fetchOptions: {
+          onSuccess: () => {
+            toast.success("Logged in successfully!");
+            router.push("/");
+          },
+          onError: (error) => {
+            toast.error(`Sign up failed: ${error.error.message}`);
+          },
+        },
+      });
+    });
   }
   return (
     <Card>
@@ -93,7 +118,16 @@ const SignUpPage = () => {
                 </Field>
               )}
             />
-            <Button>Sign up</Button>
+            <Button disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Loader2Icon className="size-4 animate-spin" />
+                  <span>Loading...</span>
+                </>
+              ) : (
+                <span>Sign up</span>
+              )}
+            </Button>
           </FieldGroup>
         </form>
       </CardContent>
